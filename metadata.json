@@ -1,0 +1,6 @@
+{
+  "name": "THE HOUSE OF FUTURE",
+  "description": "An immersive cinematic storytelling experience and AI ecosystem exploring intelligence, philosophy, art, education, media, and innovation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
