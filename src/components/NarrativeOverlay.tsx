@@ -1,18 +1,15 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ECOSYSTEM_RINGS, CHAPTERS } from '../data/storyData';
-import { RingInfo } from '../types';
-import { ChevronRight, ArrowDown } from 'lucide-react';
+import { ArrowDown } from 'lucide-react';
 
 interface NarrativeOverlayProps {
   progress: number;
-  onOpenRingDetail: (ring: RingInfo) => void;
   onScrollNext: () => void;
 }
 
 export const NarrativeOverlay: React.FC<NarrativeOverlayProps> = ({
   progress,
-  onOpenRingDetail,
   onScrollNext,
 }) => {
   // Determine which narrative chapter is active
@@ -27,54 +24,53 @@ export const NarrativeOverlay: React.FC<NarrativeOverlayProps> = ({
 
   const chapterIndex = getActiveChapterIndex();
 
-  // Active ring during Discovery phase (0.44 to 0.72)
-  const getActiveRing = (): { ring: RingInfo; index: number } | null => {
-    if (chapterIndex !== 3 && (progress < 0.44 || progress > 0.72)) return null;
-    const t = Math.max(0, Math.min(0.999, (progress - 0.44) / 0.28));
-    const ringIdx = Math.min(3, Math.max(0, Math.floor(t * 4)));
+  // If at or past 1.0, orbital narrative is complete and overlay fades out for content flow
+  const isDocumentFlow = progress >= 1.0;
+
+  // Active ring for Stages 4 to 9 (progress 0.32 to 0.90)
+  const getActiveRingData = () => {
+    if (progress < 0.30 || progress >= 0.90) return null;
+    const ringIdx = Math.min(5, Math.max(0, Math.floor((progress - 0.30) / 0.10)));
     return { ring: ECOSYSTEM_RINGS[ringIdx], index: ringIdx };
   };
 
-  const activeRingData = getActiveRing();
-
-  // If in Chapter 5 (Convergence/Collaborate/Contact), the overlay completely hides to let the document flow section breathe
-  const isFinalChapter = chapterIndex === 5 || progress >= 0.88;
+  const activeRing = getActiveRingData();
 
   return (
     <div
       className={`fixed inset-0 pointer-events-none z-20 flex flex-col justify-between px-4 py-4 sm:px-8 sm:py-6 md:px-12 md:py-8 lg:px-16 lg:py-10 max-h-screen overflow-hidden select-none transition-opacity duration-700 ${
-        isFinalChapter ? 'opacity-0 pointer-events-none' : 'opacity-100'
+        isDocumentFlow ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}
     >
       {/* Top spacer matching header height */}
       <div className="h-12 sm:h-14 md:h-16 shrink-0" />
 
-      {/* Main Narrative Dynamic Area */}
+      {/* Main Narrative Dynamic Area (Pure floating typography, zero cards, zero boxes) */}
       <div className="w-full max-w-5xl mx-auto my-auto relative">
         <AnimatePresence mode="wait">
           {/* ------------------------------------------------------------- */}
-          {/* SCENE 0: OPENING GENESIS (0.00 - 0.12) */}
+          {/* STAGE 1: THE THREE DOTS APPEAR (0.00 - 0.10) */}
           {/* ------------------------------------------------------------- */}
           {chapterIndex === 0 && (
             <motion.div
-              key="chapter-0"
-              initial={{ opacity: 0, y: 20 }}
+              key="stage-1"
+              initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
+              exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-              className="flex flex-col items-center text-center space-y-4 sm:space-y-6 md:space-y-8"
+              className="flex flex-col items-center text-center space-y-4 sm:space-y-6 md:space-y-7"
             >
               {/* Eyebrow */}
               <div className="font-mono text-[10px] sm:text-xs tracking-[0.35em] text-neutral-400 uppercase">
                 THE GENESIS POINT
               </div>
 
-              {/* Three Circle Logo (Standalone Brand Mark positioned ABOVE the main title) */}
+              {/* Three Circle Identity Logo */}
               <motion.div
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.8, delay: 0.15 }}
-                className="flex items-center justify-center gap-2.5 sm:gap-4 py-0.5 sm:py-1 select-none"
+                className="flex items-center justify-center gap-1 sm:gap-1.5 py-0.5 sm:py-1 select-none"
                 aria-label="The House of Future Logo"
               >
                 <div className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 rounded-full bg-white shadow-[0_0_15px_rgba(255,255,255,0.45)]" />
@@ -82,16 +78,22 @@ export const NarrativeOverlay: React.FC<NarrativeOverlayProps> = ({
                 <div className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 rounded-full bg-white shadow-[0_0_15px_rgba(255,255,255,0.45)]" />
               </motion.div>
 
-              {/* Main Title */}
-              <h1 className="font-heading text-3xl xs:text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-light tracking-tight text-white max-w-4xl leading-[1.05]">
-                <span>THE HOUSE OF</span>
-                <br />
-                <span>FUTURE</span>
+              {/* Main Title: Rebalanced with "OF" on the second line */}
+              <h1 className="font-heading text-4xl xs:text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-light tracking-tight text-white max-w-5xl leading-[1.05] text-center select-none">
+                <span className="block">THE HOUSE</span>
+                <span className="block font-light text-white/95">OF FUTURE</span>
               </h1>
 
+              {/* Tagline directly below the main title */}
+              <div className="pt-1 pb-1">
+                <p className="font-mono text-xs sm:text-sm md:text-base font-extralight uppercase tracking-[0.25em] text-neutral-300 text-center max-w-2xl px-4 py-1 border-y border-white/10">
+                  Being modern is not the issue. Being contemporary is.
+                </p>
+              </div>
+
               {/* Subtitle */}
-              <p className="font-body text-xs sm:text-sm md:text-base lg:text-lg text-neutral-400 max-w-lg sm:max-w-xl font-light leading-relaxed px-2">
-                An AI ecosystem. A home for intelligence, ideas, education, philosophy, media and innovation.
+              <p className="font-body text-xs sm:text-sm md:text-base text-neutral-400 max-w-lg sm:max-w-xl font-light leading-relaxed px-2 text-center">
+                An AI ecosystem. A continuous orbital journey through intelligence, ideas, philosophy, media, arts and commerce.
               </p>
 
               {/* Scroll Trigger */}
@@ -108,147 +110,154 @@ export const NarrativeOverlay: React.FC<NarrativeOverlayProps> = ({
           )}
 
           {/* ------------------------------------------------------------- */}
-          {/* SCENE 1: SEPARATION OF THE PROTAGONIST (0.12 - 0.28) */}
+          {/* STAGE 2: THE DOTS SEPARATE AND CREATE ORBITAL PATHS (0.10 - 0.22) */}
           {/* ------------------------------------------------------------- */}
           {chapterIndex === 1 && (
             <motion.div
-              key="chapter-1"
-              initial={{ opacity: 0, x: -30 }}
+              key="stage-2"
+              initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 30 }}
+              exit={{ opacity: 0, x: 20 }}
               transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-              className="max-w-2xl space-y-4 sm:space-y-6 text-left pr-6 sm:pr-0"
+              className="max-w-2xl space-y-3 sm:space-y-4 text-left"
             >
               <div className="flex items-center gap-3 font-mono text-[10px] sm:text-xs tracking-[0.3em] text-neutral-400 uppercase">
                 <span className="w-4 sm:w-6 h-px bg-white/40" />
-                <span>01 // THE PROTAGONIST DEPARTS</span>
+                <span>STAGE 02 // ORBITAL PATHS</span>
               </div>
 
-              <h2 className="font-heading text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-light tracking-tight text-white leading-tight">
-                A single point begins to travel.
+              <h2 className="font-heading text-2xl sm:text-4xl md:text-5xl font-light tracking-tight text-white leading-tight">
+                The dots separate and create orbital paths.
               </h2>
 
               <p className="font-body text-xs sm:text-base md:text-lg text-neutral-300 font-light leading-relaxed">
-                In the quiet space before form, the center circle separates from equilibrium. Not to conquer space, but to weave continuity. As it moves, it originates the first trajectory of intelligence.
+                In the quiet space before form, the center circle detaches from equilibrium to weave continuity. As it moves across space, trajectories intersect into relationships.
               </p>
 
-              <div className="pt-1 sm:pt-2 font-mono text-[10px] sm:text-xs text-neutral-500 tracking-wider">
-                TRAJECTORY: VECTOR_01 // CREATING PATHS
+              <div className="font-mono text-[10px] sm:text-xs text-neutral-500 tracking-wider">
+                TRAJECTORY: VECTOR_01 // SYSTEM FORMATION
               </div>
             </motion.div>
           )}
 
           {/* ------------------------------------------------------------- */}
-          {/* SCENE 2: WEAVING STRUCTURES & SYSTEMS (0.28 - 0.44) */}
+          {/* STAGE 3: THE HOUSE OF FUTURE CORE EMERGES (0.22 - 0.32) */}
           {/* ------------------------------------------------------------- */}
           {chapterIndex === 2 && (
             <motion.div
-              key="chapter-2"
-              initial={{ opacity: 0, y: 30 }}
+              key="stage-3"
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -30 }}
+              exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-              className="max-w-2xl ml-auto text-right space-y-4 sm:space-y-6 pl-6 sm:pl-0"
+              className="max-w-2xl ml-auto text-right space-y-3 sm:space-y-4"
             >
               <div className="flex items-center justify-end gap-3 font-mono text-[10px] sm:text-xs tracking-[0.3em] text-neutral-400 uppercase">
-                <span>02 // STRUCTURES & TOPOLOGY</span>
+                <span>STAGE 03 // THE CORE EMERGES</span>
                 <span className="w-4 sm:w-6 h-px bg-white/40" />
               </div>
 
-              <h2 className="font-heading text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-light tracking-tight text-white leading-tight">
-                Nothing appears suddenly. Everything emerges from motion.
+              <h2 className="font-heading text-2xl sm:text-4xl md:text-5xl font-light tracking-tight text-white leading-tight">
+                The House of Future core emerges.
               </h2>
 
               <p className="font-body text-xs sm:text-base md:text-lg text-neutral-300 font-light leading-relaxed">
-                Points become trajectories. Trajectories intersect into relationships. Relationships crystallize into architecture. The ecosystem breathes as a single continuous continuum.
+                The central gravitational anchor crystallizes at the center. From this single unified origin, six primary rings will emerge in continuous concentric progression.
               </p>
 
-              <div className="pt-1 sm:pt-2 font-mono text-[10px] sm:text-xs text-neutral-500 tracking-wider">
-                NETWORK TOPOLOGY: 48 NODES // TENSION 0.84
+              <div className="font-mono text-[10px] sm:text-xs text-neutral-500 tracking-wider">
+                GRAVITATIONAL ORIGIN // LAT 35°41&apos;N LON 51°25&apos;E
               </div>
             </motion.div>
           )}
 
           {/* ------------------------------------------------------------- */}
-          {/* SCENE 3: DISCOVERY OF THE FOUR RINGS (0.44 - 0.72) */}
+          {/* STAGES 4 TO 9: RINGS 01 TO 06 EMERGE FROM THE CENTRAL SYSTEM (0.32 - 0.90) */}
           {/* ------------------------------------------------------------- */}
-          {chapterIndex === 3 && activeRingData && (
+          {activeRing && (
             <motion.div
-              key={`ring-${activeRingData.ring.id}`}
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 1.04 }}
+              key={`ring-stage-${activeRing.ring.id}`}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-              className="max-w-2xl space-y-4 sm:space-y-6 text-left pr-6 sm:pr-0"
+              className="max-w-3xl space-y-3 sm:space-y-4 text-left"
             >
               <div className="flex items-center gap-3 font-mono text-[10px] sm:text-xs tracking-[0.3em] text-neutral-400 uppercase">
-                <span className="text-white font-semibold">RING {activeRingData.ring.number}</span>
+                <span className="text-white font-medium">STAGE 0{activeRing.index + 4}</span>
                 <span className="text-neutral-600">//</span>
-                <span>{activeRingData.ring.subtitle}</span>
+                <span>RING {activeRing.ring.number} EMERGES</span>
               </div>
 
-              <h2 className="font-heading text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-light tracking-tight text-white leading-tight">
-                {activeRingData.ring.title}
+              <h2 className="font-heading text-2xl sm:text-4xl md:text-5xl font-light tracking-tight text-white leading-tight">
+                {activeRing.ring.title}
               </h2>
 
-              <p className="font-body text-xs sm:text-base md:text-lg text-neutral-300 font-light leading-relaxed">
-                {activeRingData.ring.description}
+              <p className="font-body text-xs sm:text-sm md:text-base text-neutral-300 font-light leading-relaxed max-w-xl">
+                {activeRing.ring.description}
               </p>
 
-              {/* Pillars preview */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 pt-1 sm:pt-2 font-mono text-[11px] sm:text-xs text-neutral-400">
-                {activeRingData.ring.pillars.map((pillar, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-white/40" />
-                    <span>{pillar}</span>
-                  </div>
-                ))}
+              {/* Minimal inline list of nodes without cards or boxes */}
+              <div className="pt-1 space-y-1.5">
+                <div className="font-mono text-[9px] sm:text-[10px] text-neutral-500 uppercase tracking-widest">
+                  SYNAPSE NODES ({activeRing.ring.nodes.length})
+                </div>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-mono text-neutral-300">
+                  {activeRing.ring.nodes.map((nodeName, idx) => (
+                    <React.Fragment key={idx}>
+                      <span className="text-white/90 hover:text-white transition-colors">
+                        {nodeName}
+                      </span>
+                      {idx < activeRing.ring.nodes.length - 1 && (
+                        <span className="text-neutral-600">•</span>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </div>
               </div>
 
-              <div className="pt-2 sm:pt-4 pointer-events-auto">
-                <button
-                  onClick={() => onOpenRingDetail(activeRingData.ring)}
-                  className="group flex items-center gap-2.5 sm:gap-3 text-[11px] sm:text-xs font-mono tracking-widest text-white hover:text-white px-4 sm:px-5 py-2 sm:py-2.5 rounded-full border border-white/20 hover:border-white bg-neutral-950/80 backdrop-blur-md transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.05)] hover:shadow-[0_0_25px_rgba(255,255,255,0.15)] cursor-pointer"
-                >
-                  <span>DISCOVER RING {activeRingData.ring.number} MANIFESTO</span>
-                  <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
-                </button>
+              <div className="font-mono text-[10px] sm:text-xs text-neutral-500 tracking-wider pt-1">
+                ROTATING IN CONCENTRIC SYNTHESIS WITH PREVIOUS RINGS
               </div>
             </motion.div>
           )}
 
           {/* ------------------------------------------------------------- */}
-          {/* SCENE 4: MACRO LIVING SYNTHESIS (0.72 - 0.88) */}
+          {/* STAGE 10: LIVING SYNTHESIS (0.90 - 0.94) */}
           {/* ------------------------------------------------------------- */}
-          {chapterIndex === 4 && (
+          {chapterIndex === 9 && !activeRing && (
             <motion.div
-              key="chapter-4"
-              initial={{ opacity: 0, y: 25 }}
+              key="stage-10"
+              initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -25 }}
+              exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-              className="text-center max-w-3xl mx-auto space-y-4 sm:space-y-6 px-2 sm:px-0"
+              className="text-center max-w-2xl mx-auto space-y-3 sm:space-y-4"
             >
               <div className="font-mono text-[10px] sm:text-xs tracking-[0.35em] text-neutral-400 uppercase">
-                04 // MACROCOSMIC SYMBIOSIS
+                STAGE 10 // MACROCOSMIC LIVING SYNTHESIS
               </div>
 
-              <h2 className="font-heading text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-light tracking-tight text-white leading-tight">
-                Four orbits. One living horizon.
+              <h2 className="font-heading text-2xl sm:text-4xl md:text-5xl font-light tracking-tight text-white leading-tight">
+                Six rings. One living universe.
               </h2>
 
-              <p className="font-body text-xs sm:text-base md:text-lg text-neutral-300 font-light leading-relaxed max-w-2xl mx-auto">
-                Development gives structure to Philosophy. Ideas seed new Media. The ecosystem is not a catalog of features, but a self-sustaining organism of thought.
+              <p className="font-body text-xs sm:text-sm md:text-base text-neutral-300 font-light leading-relaxed max-w-xl mx-auto">
+                All six orbital rings rotate together around the central House of Future core. Every discipline informs the next in perpetual harmony.
               </p>
 
-              <div className="flex flex-wrap justify-center gap-3 sm:gap-6 pt-2 sm:pt-4 text-[10px] sm:text-xs font-mono text-neutral-400">
-                <span>ORBIT 01 // DEV</span>
-                <span className="hidden sm:inline">•</span>
-                <span>ORBIT 02 // ART</span>
-                <span className="hidden sm:inline">•</span>
-                <span>ORBIT 03 // IDEAS</span>
-                <span className="hidden sm:inline">•</span>
-                <span>ORBIT 04 // MEDIA</span>
+              <div className="flex flex-wrap justify-center gap-2 sm:gap-3 text-[10px] sm:text-xs font-mono text-neutral-400 pt-1">
+                <span>01 DEV</span>
+                <span>•</span>
+                <span>02 PHILOSOPHY</span>
+                <span>•</span>
+                <span>03 IDEAS</span>
+                <span>•</span>
+                <span>04 MEDIA</span>
+                <span>•</span>
+                <span>05 ARTS</span>
+                <span>•</span>
+                <span>06 COMMERCE</span>
               </div>
             </motion.div>
           )}
@@ -258,12 +267,12 @@ export const NarrativeOverlay: React.FC<NarrativeOverlayProps> = ({
       {/* Bottom status bar info */}
       <div className="w-full flex items-end justify-between font-mono text-[9px] sm:text-[10px] text-neutral-400 tracking-widest shrink-0 pt-2">
         <div className="hidden sm:block">
-          THE HOUSE OF FUTURE // AUTONOMOUS AI ECOSYSTEM
+          THE HOUSE OF FUTURE // CONTINUOUS ORBITAL SYSTEM
         </div>
         <div className="flex items-center gap-3 sm:gap-4 ml-auto">
-          <span>CHAPTER {CHAPTERS[chapterIndex]?.number} OF 05</span>
+          <span>STAGE {CHAPTERS[chapterIndex]?.number} OF 09</span>
           <span className="text-neutral-700">|</span>
-          <span className="hidden xs:inline">LAT 34°03&apos;N LON 118°14&apos;W</span>
+          <span className="hidden xs:inline">LAT 35°41&apos;N LON 51°25&apos;E</span>
         </div>
       </div>
     </div>

@@ -1,5 +1,11 @@
 import React, { useState } from 'react';
 import { Send, CheckCircle2, AlertCircle, Loader2, RotateCcw, ArrowUpRight } from 'lucide-react';
+import emailjs from '@emailjs/browser';
+
+const EMAILJS_SERVICE_ID = 'service_ixr5ard';
+const EMAILJS_TEMPLATE_ID = 'template_n7m5tgt';
+const EMAILJS_PUBLIC_KEY = 'mhsRpFiLk0hryh1sd';
+const DESTINATION_EMAIL = 'arash.b8281@gmail.com';
 
 interface ContactSectionProps {
   onReplay?: () => void;
@@ -81,6 +87,8 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ onReplay }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (status === 'submitting') return;
+
     setTouched({ name: true, email: true, message: true });
 
     if (!validate()) {
@@ -91,27 +99,41 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ onReplay }) => {
     setErrorMessage('');
 
     try {
-      const response = await fetch('/api/collaborate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
+      const templateParams = {
+        name: formData.name.trim(),
+        from_name: formData.name.trim(),
+        user_name: formData.name.trim(),
+        email: formData.email.trim(),
+        from_email: formData.email.trim(),
+        user_email: formData.email.trim(),
+        reply_to: formData.email.trim(),
+        message: formData.message.trim(),
+        to_email: DESTINATION_EMAIL,
+        destination_email: DESTINATION_EMAIL,
+        to_name: 'The House of Future',
+      };
 
-      const data = await response.json();
+      const response = await emailjs.send(
+        EMAILJS_SERVICE_ID,
+        EMAILJS_TEMPLATE_ID,
+        templateParams,
+        EMAILJS_PUBLIC_KEY
+      );
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to send message. Please try again.');
+      if (response.status === 200 || response.text === 'OK') {
+        setStatus('success');
+        setFormData({ name: '', email: '', message: '' });
+        setTouched({ name: false, email: false, message: false });
+      } else {
+        throw new Error(response.text || 'Failed to deliver message via EmailJS.');
       }
-
-      setStatus('success');
-      setFormData({ name: '', email: '', message: '' });
-      setTouched({ name: false, email: false, message: false });
     } catch (err: any) {
-      console.error('Contact submission error:', err);
+      console.error('EmailJS submission error:', err);
       setStatus('error');
-      setErrorMessage(err.message || 'Network error occurred. Please try again.');
+      const msg =
+        (err && typeof err === 'object' && (err.text || err.message)) ||
+        'Failed to deliver message via EmailJS. Please verify connection and try again.';
+      setErrorMessage(msg);
     }
   };
 

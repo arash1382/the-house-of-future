@@ -5,21 +5,22 @@ import { NarrativeOverlay } from './components/NarrativeOverlay';
 import { HeaderHUD } from './components/HeaderHUD';
 import { CustomCursor } from './components/CustomCursor';
 import { TimelineScrubber } from './components/TimelineScrubber';
-import { RingInteractiveModal } from './components/RingInteractiveModal';
+import { AboutSection } from './components/AboutSection';
 import { ContactSection } from './components/ContactSection';
-import { CHAPTERS, ECOSYSTEM_RINGS } from './data/storyData';
-import { RingInfo } from './types';
+import { CHAPTERS } from './data/storyData';
 import { sound } from './utils/audio';
 
 export default function App() {
   const [progress, setProgress] = useState(0);
   const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
-  const [selectedRing, setSelectedRing] = useState<RingInfo | null>(null);
+  const [highlightedRingIndex, setHighlightedRingIndex] = useState<number | null>(null);
   const [isFreeFlight, setIsFreeFlight] = useState(false);
   const [isAutoPlay, setIsAutoPlay] = useState(false);
+  const [contentTransition, setContentTransition] = useState(0);
 
   const lenisRef = useRef<Lenis | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const orbitalRunwayRef = useRef<HTMLDivElement | null>(null);
   const autoPlayAnimRef = useRef<number | null>(null);
 
   // Initialize Lenis smooth scroll with touch synchronization
@@ -43,18 +44,31 @@ export default function App() {
 
     const onScroll = () => {
       const scrollY = window.scrollY || document.documentElement.scrollTop;
-      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-      if (maxScroll > 0) {
-        const rawProgress = Math.min(Math.max(scrollY / maxScroll, 0), 1);
-        setProgress(rawProgress);
+      const runwayEl = orbitalRunwayRef.current;
+      const runwayHeight = runwayEl ? runwayEl.offsetHeight : window.innerHeight * 8.5;
+      const orbitalScrollMax = Math.max(1, runwayHeight - window.innerHeight);
+
+      // 1. Orbital Progress (0.0 to 1.0 dedicated solely to the orbital sequence)
+      if (orbitalScrollMax > 0) {
+        const rawOrbital = Math.min(Math.max(scrollY / orbitalScrollMax, 0), 1);
+        setProgress(rawOrbital);
 
         // Update active chapter index
         for (let i = 0; i < CHAPTERS.length; i++) {
-          if (rawProgress >= CHAPTERS[i].progressStart && rawProgress <= CHAPTERS[i].progressEnd) {
+          if (rawOrbital >= CHAPTERS[i].progressStart && rawOrbital <= CHAPTERS[i].progressEnd) {
             setCurrentChapterIndex(i);
             break;
           }
         }
+      }
+
+      // 2. Content Transition Progress (Only begins AFTER the orbital sequence is 100% complete)
+      if (scrollY > orbitalScrollMax) {
+        const transitionDist = window.innerHeight * 0.75;
+        const trans = Math.min(Math.max((scrollY - orbitalScrollMax) / transitionDist, 0), 1);
+        setContentTransition(trans);
+      } else {
+        setContentTransition(0);
       }
     };
 
@@ -92,10 +106,12 @@ export default function App() {
 
     let isLooping = false;
     const step = () => {
-      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      const runwayEl = orbitalRunwayRef.current;
+      const runwayHeight = runwayEl ? runwayEl.offsetHeight : window.innerHeight * 8.5;
+      const orbitalScrollMax = Math.max(1, runwayHeight - window.innerHeight);
       const currentScroll = window.scrollY || document.documentElement.scrollTop;
 
-      if (currentScroll >= maxScroll - 5) {
+      if (currentScroll >= orbitalScrollMax - 10) {
         if (!isLooping) {
           isLooping = true;
           lenisRef.current?.scrollTo(0, {
@@ -106,7 +122,7 @@ export default function App() {
           });
         }
       } else if (!isLooping) {
-        window.scrollBy({ top: 1.6, behavior: 'auto' });
+        window.scrollBy({ top: 1.8, behavior: 'auto' });
       }
 
       autoPlayAnimRef.current = requestAnimationFrame(step);
@@ -119,10 +135,13 @@ export default function App() {
     };
   }, [isAutoPlay]);
 
-  // Navigate to specific progress point
+  // Navigate to specific progress point within the orbital sequence
   const handleSelectProgress = useCallback((targetProgress: number) => {
-    const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-    const targetScrollY = Math.max(0, Math.min(targetProgress * maxScroll, maxScroll));
+    const runwayEl = orbitalRunwayRef.current;
+    const runwayHeight = runwayEl ? runwayEl.offsetHeight : window.innerHeight * 8.5;
+    const orbitalScrollMax = Math.max(1, runwayHeight - window.innerHeight);
+    const targetScrollY = Math.max(0, Math.min(targetProgress * orbitalScrollMax, orbitalScrollMax));
+
     if (lenisRef.current) {
       lenisRef.current.scrollTo(targetScrollY, { duration: 1.6 });
     } else {
@@ -132,9 +151,14 @@ export default function App() {
 
   // Navigate to next chapter or scroll forward
   const handleScrollNext = useCallback(() => {
-    if (progress >= 0.92) {
-      // Replay from start
-      handleSelectProgress(0);
+    if (progress >= 0.98) {
+      // Transition forward to About content section
+      const aboutEl = document.getElementById('about');
+      if (aboutEl && lenisRef.current) {
+        lenisRef.current.scrollTo(aboutEl, { duration: 1.6 });
+      } else if (aboutEl) {
+        aboutEl.scrollIntoView({ behavior: 'smooth' });
+      }
     } else {
       const nextChapter = CHAPTERS[currentChapterIndex + 1] || CHAPTERS[0];
       handleSelectProgress(nextChapter.progressStart + 0.02);
@@ -144,7 +168,6 @@ export default function App() {
   // Keyboard navigation & shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't intercept shortcut keys when focused on input or textarea elements
       const target = e.target as HTMLElement | null;
       const isInputFocused =
         target &&
@@ -152,12 +175,7 @@ export default function App() {
           target.tagName === 'TEXTAREA' ||
           target.isContentEditable);
 
-      if (!e.key) return;
-
-      if (isInputFocused) {
-        // Allow normal typing inside input/textarea without triggering shortcuts or page navigation
-        return;
-      }
+      if (!e.key || isInputFocused) return;
 
       const keyLower = typeof e.key === 'string' ? e.key.toLowerCase() : '';
 
@@ -183,95 +201,110 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentChapterIndex, handleSelectProgress]);
 
-  // Calculate active ring index if within discovery range
-  const getActiveRingIndex = (): number | null => {
-    if (progress < 0.44 || progress > 0.72) return null;
-    const t = (progress - 0.44) / 0.28;
-    return Math.min(3, Math.floor(t * 4));
-  };
-
   return (
     <main
       ref={scrollContainerRef}
       className="relative bg-black text-white w-full overflow-x-clip selection:bg-white selection:text-black cursor-default"
     >
       {/* Film grain layer */}
-      <div className="fixed inset-0 film-grain z-30 pointer-events-none opacity-40" />
+      <div className="fixed inset-0 film-grain z-50 pointer-events-none opacity-40" />
 
       {/* Custom smooth cursor */}
       <CustomCursor />
 
-      {/* Header HUD Navigation */}
+      {/* Header HUD Navigation (Always available) */}
       <HeaderHUD
         progress={progress}
         currentChapterIndex={currentChapterIndex}
-        onSelectChapter={handleSelectProgress}
-        onSelectRing={(ring) => setSelectedRing(ring)}
-        isFreeFlight={isFreeFlight}
-        onToggleFreeFlight={() => setIsFreeFlight((prev) => !prev)}
+        highlightedRingIndex={highlightedRingIndex}
+        onSelectProgress={handleSelectProgress}
+        onToggleHighlightRing={(idx) => setHighlightedRingIndex(idx)}
         isAutoPlay={isAutoPlay}
         onToggleAutoPlay={() => setIsAutoPlay((prev) => !prev)}
       />
 
-      {/* Timeline Chapter Scrubber */}
-      <TimelineScrubber
-        progress={progress}
-        onSelectProgress={handleSelectProgress}
-      />
-
-      {/* Interactive Story Canvas (3 Circles, Protagonist, Paths, 4 Rings, Reconnection) */}
-      <StoryCanvas
-        progress={progress}
-        onSelectRing={(ring) => setSelectedRing(ring)}
-        activeRingIndex={getActiveRingIndex()}
-        isFreeFlight={isFreeFlight}
-      />
-
-      {/* Dynamic Narrative Typography Overlay (Chapters 0-4) */}
-      <NarrativeOverlay
-        progress={progress}
-        onOpenRingDetail={(ring) => setSelectedRing(ring)}
-        onScrollNext={handleScrollNext}
-      />
-
       {/* ------------------------------------------------------------- */}
-      {/* 1. STORY SCROLL RUNWAY (Chapters 00 to 04) */}
+      {/* PINNED ORBITAL UNIVERSE (Canvas + Narrative Typography + Scrubber) */}
+      {/* Pinned for the entire orbital sequence (Stages 1 through 9 & 10) */}
+      {/* Higher z-index than following content sections until completion */}
       {/* ------------------------------------------------------------- */}
       <div
-        className="w-full h-[380vh] sm:h-[420vh] pointer-events-none"
+        className={`fixed inset-0 w-full h-screen overflow-hidden ${
+          contentTransition >= 0.99 ? 'z-0 pointer-events-none' : 'z-30 pointer-events-auto'
+        }`}
+        style={{
+          opacity: Math.max(0, 1 - contentTransition),
+          transition: 'opacity 0.25s ease-out',
+        }}
+      >
+        {/* Interactive Story Canvas: One Central Orbital System */}
+        <StoryCanvas
+          progress={progress}
+          highlightedRingIndex={highlightedRingIndex}
+          onToggleHighlightRing={(idx) => setHighlightedRingIndex(idx)}
+          isFreeFlight={isFreeFlight}
+        />
+
+        {/* Dynamic Narrative Typography Overlay (Pure text, zero cards, zero boxes) */}
+        <NarrativeOverlay
+          progress={progress}
+          onScrollNext={handleScrollNext}
+        />
+
+        {/* Timeline Chapter Scrubber (Pinned inside orbital universe) */}
+        <TimelineScrubber
+          progress={progress}
+          onSelectProgress={handleSelectProgress}
+        />
+      </div>
+
+      {/* ------------------------------------------------------------- */}
+      {/* 1. SIGNIFICANTLY INCREASED ORBITAL SCROLL RUNWAY (Stages 01 to 09) */}
+      {/* 850vh scroll duration guarantees full gradual emergence of all rings */}
+      {/* ------------------------------------------------------------- */}
+      <div
+        ref={orbitalRunwayRef}
+        className="w-full h-[850vh] sm:h-[900vh] pointer-events-none"
         aria-hidden="true"
       />
 
       {/* ------------------------------------------------------------- */}
-      {/* 2. CHAPTER 05: CONVERGENCE, COLLABORATE, CONNECT & FOOTER */}
-      {/* Standard document flow section - 100% accessible on all devices */}
+      {/* 2. REVEALED CONTENT SECTIONS (About, Collaborate, Connect, Footer) */}
+      {/* Placed AFTER the runway so they NEVER enter viewport during orbital journey */}
+      {/* Only revealed smoothly AFTER Ring 06 & living synthesis complete 100% */}
       {/* ------------------------------------------------------------- */}
       <div
-        id="collaborate"
-        className="relative z-30 w-full min-h-screen bg-gradient-to-b from-transparent via-black/85 to-black pt-20 sm:pt-28 pb-16 px-4 sm:px-6 md:px-8 flex flex-col items-center select-auto"
+        id="content-flow"
+        className="relative z-10 w-full min-h-screen select-auto transition-opacity duration-700"
+        style={{
+          opacity: contentTransition > 0.05 ? Math.min(1, contentTransition * 1.4) : 0,
+          transform: `translateY(${Math.max(0, (1 - contentTransition) * 35)}px)`,
+        }}
       >
-        {/* Chapter 5 Prelude */}
-        <div className="text-center max-w-2xl mx-auto space-y-3 mb-10 sm:mb-12">
-          <div className="font-mono text-[10px] sm:text-xs tracking-[0.35em] text-neutral-400 uppercase">
-            05 // RETURN &amp; CONVERGENCE
+        {/* About Section with Persian Manifesto & Metrics */}
+        <AboutSection />
+
+        {/* Chapter 10 Convergence, Collaborate Form, Connect & Footer */}
+        <div
+          id="collaborate"
+          className="relative w-full min-h-screen bg-gradient-to-b from-transparent via-black/85 to-black pt-16 sm:pt-24 pb-16 px-4 sm:px-6 md:px-8 flex flex-col items-center select-auto"
+        >
+          <div className="text-center max-w-2xl mx-auto space-y-3 mb-10 sm:mb-12">
+            <div className="font-mono text-[10px] sm:text-xs tracking-[0.35em] text-neutral-400 uppercase">
+              10 // RETURN &amp; CONVERGENCE
+            </div>
+            <h2 className="font-heading text-3xl sm:text-4xl md:text-5xl font-light tracking-tight text-white leading-tight">
+              What comes next?
+            </h2>
+            <p className="font-body text-xs sm:text-sm md:text-base text-neutral-300 font-light leading-relaxed max-w-md mx-auto">
+              The moving circle returns to its origin, yet the universe it traced expands infinitely across six rings.
+            </p>
           </div>
-          <h2 className="font-heading text-3xl sm:text-4xl md:text-5xl font-light tracking-tight text-white leading-tight">
-            What comes next?
-          </h2>
-          <p className="font-body text-xs sm:text-sm md:text-base text-neutral-300 font-light leading-relaxed max-w-md mx-auto">
-            The moving circle returns to its origin, yet the universe it traced expands infinitely.
-          </p>
+
+          {/* Contact Form, Transmission Channels, Social Links & Footer */}
+          <ContactSection onReplay={() => handleSelectProgress(0)} />
         </div>
-
-        {/* Contact Form, Transmission Channels, Social Links & Footer */}
-        <ContactSection onReplay={() => handleSelectProgress(0)} />
       </div>
-
-      {/* Detailed Ring Discovery Modal */}
-      <RingInteractiveModal
-        ring={selectedRing}
-        onClose={() => setSelectedRing(null)}
-      />
     </main>
   );
 }

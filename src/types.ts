@@ -4,6 +4,7 @@ export interface RingInfo {
   title: string;
   subtitle: string;
   description: string;
+  nodes: string[];
   pillars: string[];
   manifesto: string;
   coordinates: string;
